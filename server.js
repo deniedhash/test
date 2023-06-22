@@ -1,17 +1,28 @@
 const express = require('express');
-const bodyParser = require('body-parser');
+const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
 
 const app = express();
-const uploadDir = path.join(__dirname, 'files');
+const uploadDir = path.join(__dirname, 'uploads');
+const totalSpace = 1000000000; // Total storage space in bytes
 
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
-app.use(bodyParser.raw({ type: '*/*', limit: '10mb' }));
+var originalFileName;
+const storage = multer.diskStorage({
+  destination: uploadDir,
+  filename: (req, file, cb) => {
+    originalFileName = req.headers['x-original-filename'];
+    const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
+    const fileExtension = path.extname(file.originalname);
+    cb(null, uniqueSuffix + originalFileName);
+  }
+});
+
+const upload = multer({ storage });
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
@@ -47,38 +58,50 @@ app.get('/download/:fileName', (req, res) => {
   });
 });
 
-app.get('/storage', (req, res) => {
-  exec('df -h --output=avail ' + uploadDir, (error, stdout) => {
-    if (error) {
-      console.error('Error retrieving storage information:', error);
-      res.status(500).send('Error retrieving storage information.');
-    } else {
-      const output = stdout.toString().trim().split('\n')[1];
-      const availableSpace = output.split(' ')[0];
-      res.send(availableSpace);
-    }
-  });
+app.post('/upload', upload.single('file'), (req, res) => {
+  res.send('File uploaded successfully.');
 });
 
-app.post('/upload', (req, res) => {
-  const fileData = req.body;
-
-  const originalFileName = req.headers['x-original-filename'];
-  const fileName = Date.now().toString() + '_' + originalFileName;
-
+app.delete('/delete/:fileName', (req, res) => {
+  const fileName = req.params.fileName;
   const filePath = path.join(uploadDir, fileName);
 
-  fs.writeFile(filePath, fileData, (error) => {
-    if (error) {
-      console.error('Error saving file:', error);
-      res.status(500).send('Error saving file.');
+  fs.unlink(filePath, (err) => {
+    if (err) {
+      console.error('Error deleting file:', err);
+      res.status(500).send('Error deleting file.');
     } else {
-      res.send('File uploaded successfully.');
+      res.json('File deleted successfully.');
     }
   });
 });
 
-const port = 3000;
+app.get('/storage', (req, res) => {
+  const usedSpace = getTotalUsedSpace(uploadDir);
+  const remainingSpace = totalSpace - usedSpace;
+  res.send(remainingSpace.toString());
+});
+
+function getTotalUsedSpace(dirPath) {
+  let totalSize = 0;
+
+  const files = fs.readdirSync(dirPath);
+
+  files.forEach((file) => {
+    const filePath = path.join(dirPath, file);
+    const stat = fs.statSync(filePath);
+
+    if (stat.isFile()) {
+      totalSize += stat.size;
+    } else if (stat.isDirectory()) {
+      totalSize += getTotalUsedSpace(filePath);
+    }
+  });
+
+  return totalSize;
+}
+
+const port = 80;
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}. Access at http://localhost:3000`);
+  console.log(`Server is running on port ${port}. Access at http://localhost`);
 });

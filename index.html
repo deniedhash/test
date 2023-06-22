@@ -1,139 +1,171 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>File Uploader</title>
-  <style>
-    .file-upload {
-      display: none;
-    }
-    .file-upload-label {
-      padding: 10px;
-      background-color: #eaeaea;
-      border: 1px solid #ccc;
-      cursor: pointer;
-    }
-    .file-list {
-      margin-top: 20px;
-    }
-    .file-list-item {
-      margin-bottom: 10px;
-    }
-    .download-link {
-      margin-right: 10px;
-      color: #0099ff;
-    }
+  <head>
+    <title>File Uploader</title>
+    <style>
+      .file-upload {
+        display: none;
+      }
+      .file-upload-label {
+        padding: 10px;
+        background-color: #eaeaea;
+        border: 1px solid #ccc;
+        cursor: pointer;
+      }
+      .file-list {
+        margin-top: 20px;
+      }
+      .file-list-item {
+        margin-bottom: 10px;
+      }
+      .download-link {
+        margin-right: 10px;
+        text-decoration: none;
+        color: #0099ff;
+      }
+      .download-link:visited {
+        color: #0099ff;
+      }
+      .delete-link {
+        color: red;
+        margin-right: 10px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <form id="upload-form" enctype="multipart/form-data">
+      <input type="file" id="file-upload" class="file-upload" name="file">
+      <label for="file-upload" class="file-upload-label">Upload file</label>
+    </form>
+    
 
-    .download-link:visited {
-      color:#0099ff;
-    }
-    .storage-info {
-      margin-top: 20px;
-    }
-  </style>
-</head>
-<body>
-  <input type="file" id="file-upload" class="file-upload">
-  <label for="file-upload" class="file-upload-label">Choose a file...</label>
+    <div class="file-list">
+      <h3>Files:</h3>
+      <ul id="file-list"></ul>
+    </div>
 
-  <div class="file-list">
-    <h3>Files:</h3>
-    <ul id="file-list"></ul>
-  </div>
+    <script>
+      const fileInput = document.getElementById("file-upload");
+      fileInput.addEventListener("change", handleFileUpload);
 
-  <div class="storage-info">
-    <h3>Storage Information:</h3>
-    <p id="storage-space"></p>
-  </div>
+      function updateFileList(files) {
+        const fileList = document.getElementById("file-list");
+        fileList.innerHTML = "";
 
-  <script>
-    const fileInput = document.getElementById('file-upload');
-    fileInput.addEventListener('change', handleFileUpload);
+        files.forEach((file) => {
+          const listItem = document.createElement("li");
 
-    function updateFileList(files) {
-      const fileList = document.getElementById('file-list');
-      fileList.innerHTML = '';
+          const downloadLink = document.createElement("a");
+          downloadLink.href = "/download/" + encodeURIComponent(file);
+          downloadLink.className = "download-link";
+          downloadLink.textContent = "Download";
 
-      files.forEach((file) => {
-        const listItem = document.createElement('li');
+          const deleteLink = document.createElement("span");
+          deleteLink.className = "delete-link";
+          deleteLink.textContent = "Delete";
+          deleteLink.addEventListener("click", () => deleteFile(file));
 
-        const downloadLink = document.createElement('a');
-        downloadLink.href = '/download/' + file;
-        downloadLink.className = 'download-link';
-        downloadLink.textContent = 'Download';
+          const fileName = document.createElement("span");
+          fileName.textContent = file;
 
-        const fileName = document.createElement('span');
-        fileName.textContent = file;
+          listItem.appendChild(downloadLink);
+          listItem.appendChild(deleteLink);
+          listItem.appendChild(fileName);
 
-        listItem.appendChild(downloadLink);
-        listItem.appendChild(fileName);
+          fileList.appendChild(listItem);
+        });
+      }
 
-        fileList.appendChild(listItem);
-      });
-    }
+      function updateStorageSpace(space) {
+        const storageSpace = document.getElementById("storage-space");
+        storageSpace.textContent = space;
+      }
 
-    function updateStorageSpace(space) {
-      const storageSpace = document.getElementById('storage-space');
-      storageSpace.textContent = 'Remaining storage space: ' + space;
-    }
+      fetch("/files")
+        .then((response) => response.json())
+        .then((data) => {
+          updateFileList(data);
+        })
+        .catch((error) => {
+          console.error("Error fetching file list:", error);
+        });
 
-    fetch('/files')
-      .then((response) => response.json())
-      .then((data) => {
-        updateFileList(data);
-      })
-      .catch((error) => {
-        console.error('Error fetching file list:', error);
-      });
+      fetch("/storage")
+        .then((response) => response.text())
+        .then((data) => {
+          updateStorageSpace(data);
+        })
+        .catch((error) => {
+          console.error("Error fetching storage space:", error);
+        });
 
-    fetch('/storage')
-      .then((response) => response.text())
-      .then((data) => {
-        updateStorageSpace(data);
-      })
-      .catch((error) => {
-        console.error('Error fetching storage space:', error);
-      });
 
-    function handleFileUpload(event) {
-      const file = event.target.files[0];
-      const reader = new FileReader();
+      function handleFileUpload(event) {
+        const fileInput = event.target.files[0];
+        const formData = new FormData();
+        formData.append("file", fileInput);
 
-      reader.onload = function() {
-        const fileData = reader.result;
+        const headers = new Headers();
+        headers.append("x-original-filename", fileInput.name);
 
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', 'http://localhost:3000/upload', true);
-        xhr.setRequestHeader('X-Original-Filename', file.name);
-
-        xhr.onreadystatechange = function() {
-          if (xhr.readyState === 4 && xhr.status === 200) {
-            console.log('File uploaded successfully:', xhr.responseText);
-            fetch('/files')
+        fetch("/upload", {
+          method: "POST",
+          headers: headers,
+          body: formData,
+        })
+          .then((response) => response.json)
+          .then((data) => {
+            fetch("/files")
               .then((response) => response.json())
               .then((data) => {
                 updateFileList(data);
               })
               .catch((error) => {
-                console.error('Error fetching file list:', error);
+                console.error("Error fetching file list:", error);
               });
-            fetch('/storage')
+            fetch("/storage")
               .then((response) => response.text())
               .then((data) => {
                 updateStorageSpace(data);
               })
               .catch((error) => {
-                console.error('Error fetching storage space:', error);
+                console.error("Error fetching storage space:", error);
               });
-          } else if (xhr.readyState === 4 && xhr.status !== 200) {
-            console.error('Error uploading file:', xhr.status);
-          }
-        };
+          })
+          .catch((error) => {
+            console.error("Error uploading file:", error);
+          });
+      }
 
-        xhr.send(fileData);
-      };
-
-      reader.readAsDataURL(file);
-    }
-  </script>
-</body>
+      function deleteFile(fileName) {
+        fetch("/delete/" + encodeURIComponent(fileName), {
+          method: "DELETE",
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            console.log("File deleted successfully:", data);
+            fetch("/files")
+              .then((response) => response.json())
+              .then((data) => {
+                updateFileList(data);
+              })
+              .catch((error) => {
+                console.error("Error fetching file list:", error);
+              });
+            fetch("/storage")
+              .then((response) => response.text())
+              .then((data) => {
+                updateStorageSpace(data);
+              })
+              .catch((error) => {
+                console.error("Error fetching storage space:", error);
+              });
+          })
+          .catch((error) => {
+            console.error("Error deleting file:", error);
+          });
+      }
+    </script>
+  </body>
 </html>
