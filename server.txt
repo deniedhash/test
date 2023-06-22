@@ -1,0 +1,45 @@
+const express = require('express');
+const bodyParser = require('body-parser');
+const fs = require('fs');
+const path = require('path');
+
+const app = express();
+const uploadDir = path.join(__dirname, 'uploads'); // Specify the directory where you want to save the uploaded file
+
+// Create the uploads directory if it doesn't exist
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+app.use(bodyParser.text({ limit: '10mb' }));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+  });
+
+// Set up a route to handle file upload
+app.post('/upload', (req, res) => {
+  const fileData = req.body;
+
+  // Generate a unique name for the file to avoid overwriting existing files
+  const fileName = Date.now().toString() + '_' + Math.round(Math.random() * 100000000).toString();
+
+  // Construct the file path
+  const filePath = path.join(uploadDir, fileName);
+
+  // Save the file to the specified directory
+  fs.writeFile(filePath, fileData, (error) => {
+    if (error) {
+      console.error('Error saving file:', error);
+      res.status(500).send('Error saving file.');
+    } else {
+      // File saved successfully
+      res.send('File uploaded successfully.');
+    }
+  });
+});
+
+// Start the server
+app.listen(3000, () => {
+  console.log('Server is running on port 3000');
+});
