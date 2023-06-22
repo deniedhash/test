@@ -5,7 +5,7 @@ const path = require('path');
 const { exec } = require('child_process');
 
 const app = express();
-const uploadDir = path.join(__dirname, 'uploads');
+const uploadDir = path.join(__dirname, 'files');
 
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
