@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process');
 
 const app = express();
 const uploadDir = path.join(__dirname, 'uploads');
@@ -10,7 +11,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
-app.use(bodyParser.raw({ type: '*/*', limit: '10mb' })); // Increase the limit to accept larger file uploads
+app.use(bodyParser.raw({ type: '*/*', limit: '10mb' }));
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
@@ -46,6 +47,19 @@ app.get('/download/:fileName', (req, res) => {
   });
 });
 
+app.get('/storage', (req, res) => {
+  exec('df -h --output=avail ' + uploadDir, (error, stdout) => {
+    if (error) {
+      console.error('Error retrieving storage information:', error);
+      res.status(500).send('Error retrieving storage information.');
+    } else {
+      const output = stdout.toString().trim().split('\n')[1];
+      const availableSpace = output.split(' ')[0];
+      res.send(availableSpace);
+    }
+  });
+});
+
 app.post('/upload', (req, res) => {
   const fileData = req.body;
 
@@ -66,5 +80,5 @@ app.post('/upload', (req, res) => {
 
 const port = 3000;
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}. Access at https://localhost:3000`);
+  console.log(`Server is running on port ${port}. Access at http://localhost:3000`);
 });

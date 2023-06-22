@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Remote Server for storing files</title>
+  <title>File Uploader</title>
   <style>
     .file-upload {
       display: none;
@@ -20,11 +20,14 @@
     }
     .download-link {
       margin-right: 10px;
-      text-decoration: none;
       color: #0099ff;
     }
+
     .download-link:visited {
-        color:#0099ff;
+      color:#0099ff;
+    }
+    .storage-info {
+      margin-top: 20px;
     }
   </style>
 </head>
@@ -35,6 +38,11 @@
   <div class="file-list">
     <h3>Files:</h3>
     <ul id="file-list"></ul>
+  </div>
+
+  <div class="storage-info">
+    <h3>Storage Information:</h3>
+    <p id="storage-space"></p>
   </div>
 
   <script>
@@ -63,6 +71,11 @@
       });
     }
 
+    function updateStorageSpace(space) {
+      const storageSpace = document.getElementById('storage-space');
+      storageSpace.textContent = 'Remaining storage space: ' + space;
+    }
+
     fetch('/files')
       .then((response) => response.json())
       .then((data) => {
@@ -70,6 +83,15 @@
       })
       .catch((error) => {
         console.error('Error fetching file list:', error);
+      });
+
+    fetch('/storage')
+      .then((response) => response.text())
+      .then((data) => {
+        updateStorageSpace(data);
+      })
+      .catch((error) => {
+        console.error('Error fetching storage space:', error);
       });
 
     function handleFileUpload(event) {
@@ -93,6 +115,14 @@
               })
               .catch((error) => {
                 console.error('Error fetching file list:', error);
+              });
+            fetch('/storage')
+              .then((response) => response.text())
+              .then((data) => {
+                updateStorageSpace(data);
+              })
+              .catch((error) => {
+                console.error('Error fetching storage space:', error);
               });
           } else if (xhr.readyState === 4 && xhr.status !== 200) {
             console.error('Error uploading file:', xhr.status);
