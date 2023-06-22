@@ -82,7 +82,7 @@ app.get('/storage', (req, res) => {
   res.send(remainingSpace.toString());
 });
 
-function getTotalUsedSpace(dirPath) {
+async function getTotalUsedSpace(dirPath) {
   let totalSize = 0;
 
   const files = fs.readdirSync(dirPath);
@@ -101,7 +101,7 @@ function getTotalUsedSpace(dirPath) {
   return totalSize;
 }
 
-const port = 80;
+const port = 3000;
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}. Access at http://localhost`);
+  console.log(`Server is running on port ${port}. Access at http://localhost/${port}`);
 });
